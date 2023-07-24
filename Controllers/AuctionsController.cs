@@ -22,16 +22,18 @@ namespace ItemMarketplace.Controllers
 
         // GET: api/Auctions
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Auction>>> GetAuctions(string name = null, string status = null, string seller = null, string sort_order = null, string sort_key = null)
+        public async Task<ActionResult<IEnumerable<Auction>>> GetAuctions(
+            string name = null, string status = null, string seller = null, string sort_order = null, string sort_key = null, int page_limit = 3, int page = 1) 
+            // as I understood filters only for: name, status, seller; sort key only for price, createddt
         {
             var auctions =  await _context.Auctions.Include(a => a.Item).ToListAsync();
-            if (auctions.Count != 0)
+            if (auctions.Count != 0) // no filtration or sort needed if list is empty
             {
-                if (name != null)
+                if (name != null) // if param is passed
                 {
                     auctions = FilterByName(auctions, name); // name is an item's name (auction doesn't contain it)
                 }
-                if (seller != null)
+                if (seller != null) // if param is passed
                 {
                     auctions = FilterBySeller(auctions, seller);
                 }
@@ -46,6 +48,8 @@ namespace ItemMarketplace.Controllers
                 auctions = Sort(auctions, sort_key, sort_order); // by default sorted by id asc
             }
 
+            auctions = auctions.Skip((page - 1) * page_limit).Take(page_limit).ToList(); // my db have only few records that's why default page_limit is only 3
+
             return Ok(auctions);
         }
 
@@ -53,11 +57,11 @@ namespace ItemMarketplace.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Auction>> GetAuction(int id)
         {
-            var auction = await _context.Auctions.FindAsync(id);
+            var auction = await _context.Auctions.Where(a => a.Id == id).Include(a => a.Item).FirstOrDefaultAsync();
 
             if (auction == null)
             {
-                return NotFound();
+                return NotFound($"There's no auction with this id: {id}");
             }
 
             return auction;
